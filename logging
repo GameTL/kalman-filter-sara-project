@@ -1,0 +1,21 @@
+import csv
+
+def log_data(x, y, filename='data_log.csv'):
+    with open(filename, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([x, y])
+
+# Example usage
+if __name__ == "__main__":
+    import random
+    import time
+
+    try:
+        while True:
+            x = random.random()  # Generate a random x value
+            y = random.random()  # Generate a random y value
+            log_data(x, y)       # Log data
+            print(f"Logged x={x}, y={y}")
+            time.sleep(1)        # Wait for 1 second before logging the next set
+    except KeyboardInterrupt:
+        print("\nLogging stopped.")

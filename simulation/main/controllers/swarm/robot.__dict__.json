@@ -1,0 +1,12 @@
+{"devices": 
+{"receiver": <controller.receiver.Receiver object at 0x13f83f1d0>, 
+"emitter": <controller.emitter.Emitter object at 0x13f83dfa0>, 
+"display": <controller.display.Display object at 0x13f83ecc0>, 
+"range-finder": <controller.range_finder.RangeFinder object at 0x104d8e2d0>, 
+"camera": <controller.camera.Camera object at 0x13f83f6e0>, 
+"LDS-01": <controller.lidar.Lidar object at 0x13f86a360>, 
+"LDS-01_main_motor": <controller.motor.Motor object at 0x13f86a420>, 
+"LDS-01_secondary_motor": <controller.motor.Motor object at 0x13f86a450>, 
+"right wheel motor": <controller.motor.Motor object at 0x13f86a480>, 
+"right wheel sensor": <controller.position_sensor.PositionSensor object at 0x13f86a4b0>, "left wheel motor": <controller.motor.Motor object at 0x13f86a540>, "left wheel sensor": <controller.position_sensor.PositionSensor object at 0x13f86a570>, "accelerometer": <controller.accelerometer.Accelerometer object at 0x13f86a5a0>, "gyro": <controller.gyro.Gyro object at 0x13f86a630>, "compass": <controller.compass.Compass object at 0x13f86a6f0>}, "keyboard": <controller.keyboard.Keyboard object at 0x106b77a10>, "mouse": <controller.mouse.Mouse object at 0x13f86a7b0>, 
+"joystick": <controller.joystick.Joystick object at 0x13f86a7e0>}
