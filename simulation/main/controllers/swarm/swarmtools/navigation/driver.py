@@ -16,19 +16,53 @@ WHEEL_BASE = 0.18
 GPS_DEVICE_NAME = "gps"
 
 
+delta_t = 0.032  # Adjust this value based on your simulation timestep
 ##* KALAMN FILTER STUFF
-Q = np.array([[0.0319165, 0.0], 
-              [0.0,       0.0]])
+DELTA_T = 0.032
 
-R = np.array([[0.0339805,       0.0], 
-              [0.0, 1]])
+NOISE = True
+# NOISE = False
+# KALMAN = True
+KALMAN = False
+Q_VEL_STD = 1
+Q_VEL_SCALE = 2
+Q_VEL_VAR  = (Q_VEL_STD * Q_VEL_SCALE) **2  * 0.00001
+Q_POS_VAR  = Q_VEL_VAR * (DELTA_T **2) * 0.00001
 
-H = np.array([[1, 0], 
-              [0, 0]]) # 2x2
+R_POS_STD = 0.75
+R_POS_SCALE = 0.01250
+R_POS_VAR  = (R_POS_STD * R_POS_SCALE) **2
+R_VEL_VAR  = R_POS_VAR / (DELTA_T **2)
 
-A = np.array([[1, 0], 
-              [0, 0]]) # 2x2
+# THIS WORKS BACKUP
+# Q = np.array([[0.0001 * delta_t, 0.0], 
+#               [0.0, 0.001 * delta_t]])  # Adjust values based on system characteristics
 
+# R = np.array([[0.0339805,       0.0], 
+#               [0.0, 1]])
+Q = np.array([[0.00004262145466 * DELTA_T, 0], 
+              [0, 0.003508442718 * DELTA_T]])  # Adjust values based on system characteristics
+
+R = np.array([[R_POS_VAR, 0], 
+              [0, R_VEL_VAR]])
+
+print(Q)
+print(R)
+
+# Q = np.array([[0.00007971263991, 0.00005327716259], 
+#               [0.00005327716259, 0.003354669432]])  # Adjust values based on system characteristics
+
+# R = np.array([[0.0002308828092, 0.004415395764], 
+#               [0.004415395764, 0.2754804995]])
+
+H = np.array([[1, 0],  # Measure position
+              [0, 0]])  # No direct measurement of velocity (if applicable)
+
+# Define the time step
+
+# Update A to reflect time-dependent state transitions
+A = np.array([[1, delta_t],  # Position = previous position + velocity * delta_t
+              [0, 1]])       # Velocity remains constant (or could include a small change if modeling acceleration)
 I = np.eye(2)
 #* 1. Initialize system estimation
 X_hat = np.array([[0.0], 
@@ -98,6 +132,23 @@ def log_data2(
 
             ]
         )
+def log_data3(
+    position_clean: float,
+    position_dirty: float,
+
+    sim_time,
+    filename=FILENAME,
+):
+    with open(filename, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(
+            [
+                sim_time,
+                position_clean,
+                position_dirty,
+
+            ]
+        )
 
 
 class Driver:
@@ -156,10 +207,12 @@ class Driver:
         else:
             self.sorted_waypoints = []
         self.v_linear = 2
-        self.Kp_linear = 40
-        self.Ki_linear = 2
+        self.Kp_linear = 20
+        # self.Ki_linear = 40 * 0.45 /0.325
+        self.Ki_linear = 0
+        # 40 + 2
         self.Kp_angular = 50.0
-        self.Ki_angular = 10
+        self.Ki_angular = 0
         self.linear_integral = 0.0
         self.angular_integral = 0.0
         self.prev_v_clean = 0.0
@@ -280,17 +333,19 @@ class Driver:
 
             self.robot_position["clean_vel"] = v_clean
             mean = 0
-            std_dev = 1
             #! DISTURBANCE 1
             #! DISTURBANCE 1
-            noise = np.random.normal(mean, std_dev) * 0.125
-            # noise = 0  # Set to zero if no noise is desired
+            if NOISE:
+                noise = np.random.normal(mean, Q_VEL_STD) * Q_VEL_SCALE
+            else:
+                noise = 0  # Set to zero if no noise is desired
             v_dirty = v_clean + noise
             #! DISTURBANCE 1
             #! DISTURBANCE 1
             self.robot_position["dirty_vel"] = v_dirty
 
             # Set motor velocities
+            v_dirty = max(min(v_dirty, MAX_SPEED), -MAX_SPEED)
             self.left_motor.setVelocity(v_dirty)
             self.right_motor.setVelocity(v_dirty)
             clean_position = self.robot_position["clean_x"]
@@ -347,8 +402,8 @@ class Driver:
         def kalman_filter_2x2(sensor_data):
             global K, Q, R, H, I, X_p, P_p, X_hat, P_hat
             #* 2. Predict system state
-            X_p = A @ X_hat
-            P_p = A @ P_hat @ A.T + Q
+            X_p = A @ X_hat  # Predict the next state
+            P_p = A @ P_hat @ A.T + Q  # Predict the covariance
             
             #* 3. Compute Kalman Gain
             K = P_p @ H.T @ np.linalg.inv(H @ P_p @ H.T + R)
@@ -362,14 +417,17 @@ class Driver:
             # print(K)
             
             #* 4. Estimate system state
+            # Update the state estimate
             X_hat = X_p + K @ (sensor_data - H @ X_p)
+
+            # Update the error covariance matrix
             P_hat = P_p - K @ H @ P_p
             print(f"estimated: {X_hat[0][0]}, predicted: {X_p[0][0]}, sensor_data: {sensor_data}, ground_truth: {self.robot_position["clean_x"]}")
-            log_data2(
-                err_dirty=sensor_data - self.robot_position["clean_x"],
-                err_estimated=X_hat[0][0] - self.robot_position["clean_x"],
-                sim_time=self.robot.getTime(),
-            )
+            # log_data2(
+            #     err_dirty=sensor_data - self.robot_position["clean_x"],
+            #     err_estimated=X_hat[0][0] - self.robot_position["clean_x"],
+            #     sim_time=self.robot.getTime(),
+            # )
             return X_hat[0][0]
         
         temp_left = np.float64(self.left_encoder.getValue())
@@ -381,18 +439,27 @@ class Driver:
         #! DISTURBANCE 2
         #! DISTURBANCE 2
         mean = 0
-        std_dev = 0.75
-        # self.robot_position["dirty_x"] = self.robot_position["clean_x"] # no noise
-        self.robot_position["dirty_x"] = kalman_filter_2x2((self.robot_position["clean_x"] + np.random.normal(mean, std_dev) * 0.1250))
-        # self.robot_position["dirty_x"] = (self.robot_position["clean_x"] + np.random.normal(mean, std_dev) * 0.1250)
+        if NOISE:
+            if KALMAN:
+                self.robot_position["dirty_x"] = kalman_filter_2x2((self.robot_position["clean_x"] + np.random.normal(mean, R_POS_STD) * R_POS_SCALE))
+            else:
+                self.robot_position["dirty_x"] = (self.robot_position["clean_x"] + np.random.normal(mean, R_POS_STD) * R_POS_SCALE)
+        else:
+            self.robot_position["dirty_x"] = self.robot_position["clean_x"] # no noise
+        
+        # print(self.robot_position["dirty_x"])
         #! DISTURBANCE 2
         #! DISTURBANCE 2
         #! DISTURBANCE 2
         #! DISTURBANCE 2
-        log_data(
-                position=self.robot_position["dirty_x"],
+        # log_data(
+        #         position=self.robot_position["dirty_x"],
+        #         sim_time=self.robot.getTime(),
+        #     )
+        log_data3(
+                position_clean=self.robot_position["clean_x"],
+                position_dirty=self.robot_position["dirty_x"],
                 sim_time=self.robot.getTime(),
-                filename="withKalaman_new.csv",
             )
 
         
