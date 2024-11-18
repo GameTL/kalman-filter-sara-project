@@ -22,8 +22,8 @@ DELTA_T = 0.032
 
 NOISE = True
 # NOISE = False
-# KALMAN = True
-KALMAN = False
+KALMAN = True
+# KALMAN = False
 Q_VEL_STD = 1
 Q_VEL_SCALE = 2
 Q_VEL_VAR  = (Q_VEL_STD * Q_VEL_SCALE) **2  * 0.00001
@@ -32,6 +32,8 @@ Q_POS_VAR  = Q_VEL_VAR * (DELTA_T **2) * 0.00001
 R_POS_STD = 0.75
 R_POS_SCALE = 0.01250
 R_POS_VAR  = (R_POS_STD * R_POS_SCALE) **2
+# R_RELATION = 0
+R_RELATION = R_POS_VAR / (DELTA_T)
 R_VEL_VAR  = R_POS_VAR / (DELTA_T **2)
 
 # THIS WORKS BACKUP
@@ -40,11 +42,13 @@ R_VEL_VAR  = R_POS_VAR / (DELTA_T **2)
 
 # R = np.array([[0.0339805,       0.0], 
 #               [0.0, 1]])
-Q = np.array([[0.00004262145466 * DELTA_T, 0], 
-              [0, 0.003508442718 * DELTA_T]])  # Adjust values based on system characteristics
+# Q = np.array([[0.00004262145466,0], 
+#               [0, 0.003508442718 ]])  # Adjust values based on system characteristics
+Q = np.array([[0.00004262145466,0.000061363], 
+              [0.000061363, 0.003508442718 ]])  # Adjust values based on system characteristics
 
-R = np.array([[R_POS_VAR, 0], 
-              [0, R_VEL_VAR]])
+R = np.array([[R_POS_VAR, R_RELATION], 
+              [R_RELATION, R_VEL_VAR]])
 
 print(Q)
 print(R)
